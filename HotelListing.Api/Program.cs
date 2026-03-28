@@ -1,7 +1,5 @@
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddControllers();
-builder.Services.AddSwaggerGen();  
+ 
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -9,15 +7,10 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/v1/openapi.json", "HotelListing Api v1");   
-    });
+    app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
-app.MapControllers();
 
 var summaries = new[]
 {
@@ -36,7 +29,10 @@ app.MapGet("/weather", () =>
         .ToArray();
     return forecast;
 })
-.WithName("GetWeatherForecast");
+.WithName("GetWeatherForecast")
+.WithTags("Weather")
+.WithSummary("Gets the weather forecast for the next 5 days.")
+.WithDescription("This endpoint returns a list of weather forecasts for the next 5 days, including the date, temperature in Celsius, and a summary of the weather conditions.");
 
 app.Run();
 
