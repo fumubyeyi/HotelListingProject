@@ -1,7 +1,23 @@
 using Serilog;
+using Scalar.AspNetCore;
+using System.Text.Json.Serialization;
+using HotelListing.Api.Services;
+using HotelListing.Api.Weather;
+using HotelListing.Api.Data;
+using Microsoft.EntityFrameworkCore; 
+using Microsoft.EntityFrameworkCore.Design;   
+
 
 var builder = WebApplication.CreateBuilder(args);
- 
+
+var connectionString = builder.Configuration.GetConnectionString("AZURE_SQL_CONNECTIONSTRING") ?? throw new InvalidOperationException("Connection string 'AZURE_SQL_CONNECTIONSTRING' not found.");
+builder.Services.AddDbContext<HotelListingDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
 builder.Services.AddOpenApi();
 
 builder.Services.AddCors(options =>
@@ -16,6 +32,8 @@ builder.Services.AddCors(options =>
 
 builder.Host.UseSerilog((ctx, lc) => lc.WriteTo.Console().ReadFrom.Configuration(ctx.Configuration));
 
+builder.Services.AddSingleton<IWeatherForecastService, WeatherForecastService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -23,34 +41,12 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+app.MapScalarApiReference();
+
 app.UseCors();
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weather", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast")
-.WithTags("Weather")
-.WithSummary("Gets the weather forecast for the next 5 days.")
-.WithDescription("This endpoint returns a list of weather forecasts for the next 5 days, including the date, temperature in Celsius, and a summary of the weather conditions.");
+var weatherForecastEndpoints = new WeatherForecastEndpoints(app.Services.GetRequiredService<IWeatherForecastService>());
+weatherForecastEndpoints.MapWeatherForecastEndpoints(app);
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
