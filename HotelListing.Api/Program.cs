@@ -5,14 +5,21 @@ using HotelListing.Api.Services;
 using HotelListing.Api.Weather;
 using HotelListing.Api.Data;
 using Microsoft.EntityFrameworkCore; 
-using Microsoft.EntityFrameworkCore.Design;   
+using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("AZURE_SQL_CONNECTIONSTRING") ?? throw new InvalidOperationException("Connection string 'AZURE_SQL_CONNECTIONSTRING' not found.");
 builder.Services.AddDbContext<HotelListingDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString ,sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null);
+    }));
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
